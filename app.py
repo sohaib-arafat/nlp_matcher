@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 from sentence_transformers import SentenceTransformer, util
 
 nltk.download('wordnet')
+nltk.download('punkt')
 
 app = Flask(__name__)
 
