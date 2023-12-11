@@ -11,7 +11,7 @@ app = Flask(__name__)
 model_name = 'sentence-transformers/stsb-roberta-large'
 model = SentenceTransformer(model_name)
 
-SIMILARITY_THRESHOLD = 0.4
+SIMILARITY_THRESHOLD = 0.35
 
 def get_synonyms(word):
     try:
