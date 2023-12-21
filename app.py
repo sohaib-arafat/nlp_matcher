@@ -11,7 +11,7 @@ app = Flask(__name__)
 model_name = 'sentence-transformers/stsb-roberta-large'
 model = SentenceTransformer(model_name)
 
-SIMILARITY_THRESHOLD = 0.35
+SIMILARITY_THRESHOLD = 0.32
 
 def get_synonyms(word):
     try:
@@ -64,7 +64,6 @@ def match_phrases(input_phrase, matchers):
 
             similarity = cosine_similarity(input_embedding, matcher_embedding)
 
-            # Tokenize the matcher phrase
             matcher_words = set(token.lower() for token in nltk.word_tokenize(matcher_phrase))
 
             if any(is_synonym_of_any(token.lower(), matcher_words) for token in nltk.word_tokenize(input_phrase.lower())):
@@ -76,8 +75,58 @@ def match_phrases(input_phrase, matchers):
     except Exception as e:
         print(f"Error in match_phrases: {str(e)}")
         return {}
+def calculate_match_percentages(input_phrase, matchers):
+    try:
+        results = {}
+        input_embedding = get_embedding(input_phrase)
 
-@app.route('/process', methods=['POST'])
+        if input_embedding is None:
+            raise ValueError("Failed to obtain input embedding.")
+
+        for matcher_id, matcher_phrase in matchers.items():
+            matcher_embedding = get_embedding(matcher_phrase)
+
+            if matcher_embedding is None:
+                raise ValueError(f"Failed to obtain embedding for matcher {matcher_id}.")
+
+            similarity = cosine_similarity(input_embedding, matcher_embedding) * 100  # Convert similarity to percentage
+
+            matcher_words = set(token.lower() for token in nltk.word_tokenize(matcher_phrase))
+
+            if any(is_synonym_of_any(token.lower(), matcher_words) for token in nltk.word_tokenize(input_phrase.lower())):
+                results[matcher_id] = similarity
+            else:
+                results[matcher_id] = similarity if similarity > SIMILARITY_THRESHOLD else 0.0
+
+        return results
+    except Exception as e:
+        print(f"Error in calculate_match_percentages: {str(e)}")
+        return {}
+@app.route('/match_percentage', methods=['POST'])
+def match_percentage():
+    try:
+        data = request.get_json()
+        input_phrase = data.get('input_phrase')
+        matchers = data.get('matchers')
+
+        results = calculate_match_percentages(input_phrase, matchers)
+
+        response = {
+            "success": True,
+            "results": results
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        error_response = {
+            "success": False,
+            "error": str(e)
+        }
+        return jsonify(error_response), 400
+
+
+@app.route('/match_bool', methods=['POST'])
 def process_input():
     try:
         data = request.get_json()
